@@ -3,9 +3,16 @@
 #include <string>
 #include <iomanip>
 #include <fstream>
-
+#include <ctime>
 
 using namespace std;
+
+struct LiveBeing
+{
+    int line;
+    int colune;
+    bool alive;
+};
 
 /**
  * This enum represents state the game is in
@@ -108,13 +115,67 @@ void mazeOpen(vector<string> &maze)
         cout << maze[i] << endl;
 }
 
+
+/**
+recives de input of the player and moves it accordingly
+@param n1: player position
+*/
+void movePlayer(LiveBeing &player)
+{
+    char move;
+    cout << "insert movement: ";
+    cin >> move;
+    
+    if (cin.fail())
+    {
+        cout << "\nInvalid input!\n\n";
+        cin.clear();
+        cin.ignore(10000, '\n');
+    }
+
+    if (move == 'Q' || move == 'q')
+    {
+        player.line -= 1;
+        player.colune -= 1;
+    }
+    else if (move == 'W' || move == 'w') player.line -= 1;
+    else if (move == 'E' || move == 'e')
+    {
+        player.line -= 1;
+        player.colune += 1;
+    }
+    else if (move == 'A' || move == 'a') player.colune -= 1;
+    else if (move == 'S' || move == 's');
+    else if (move == 'D' || move == 'd') player.colune += 1;
+    else if (move == 'Z' || move == 'z')
+    {
+        player.line += 1;
+        player.colune -= 1;
+    }
+    else if (move == 'X' || move == 'x') player.line += 1;
+    else if (move == 'C' || move == 'c')
+    {
+        player.line += 1;
+        player.colune += 1;
+    }
+    else
+        cout << "\nInvalid input!\n\n";
+}
+
+void checkPlayerandRobot(LiveBeing& player, vector<LiveBeing>& robots)
+{
+    for (int i = 0; i < robots.size(); i++)
+    {
+        if (robots[i].line == player.line && robots[i].colune == player.line && robots[i].alive)
+            player.alive = false;
+    }
+}
+
 int main()
 {
-    vector<string> maze;
-    mazeOpen(maze);
-    /* bool running = true;
+    bool running = true; 
     GameState gameState = GameState::mainMenu;
-
+    time_t timeBegining;
     while (running)
     {
         switch (gameState)
@@ -130,5 +191,5 @@ int main()
         case GameState::finished:
             break;
         }
-    }*/
+    }
 }
