@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 #include <iomanip>
+#include <fstream>
+
 
 using namespace std;
 
@@ -82,9 +84,35 @@ bool mainMenu(GameState &gameState)
     return true;
 }
 
+void mazeOpen(vector<string> &maze)
+{
+    string number, filename, tryy, sizeMaze, temp;
+	cout << "inserte number of the maze (format XX): "; 
+	cin >> number;
+	filename = "MAZE_" + number + ".txt";
+	ifstream infile;
+	infile.open(filename); 
+	if (!infile.is_open())
+	{
+		cerr << "Error opening " << filename << "\n";
+		exit(1);
+	}
+	infile >> sizeMaze;
+	while (!infile.eof())
+	{
+        getline(infile, temp);
+        maze.push_back(temp);
+	}
+    infile.close();
+    for (int i = 0; i < maze.size(); i++)
+        cout << maze[i] << endl;
+}
+
 int main()
 {
-    bool running = true;
+    vector<string> maze;
+    mazeOpen(maze);
+    /* bool running = true;
     GameState gameState = GameState::mainMenu;
 
     while (running)
@@ -102,5 +130,5 @@ int main()
         case GameState::finished:
             break;
         }
-    }
+    }*/
 }
