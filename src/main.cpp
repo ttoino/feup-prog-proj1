@@ -3,15 +3,55 @@
 #include <string>
 #include <iomanip>
 #include <fstream>
-#include <ctime>
+#include <chrono>
 
 using namespace std;
 
-struct LiveBeing
+/**
+ * This struct represents a robot or the player
+ */
+struct Entity
 {
+    /** Position on the x-axis */
+    int column;
+    /** Position on the y-axis */
     int line;
-    int colune;
-    bool alive;
+    /** Whether the entity is alive or dead */
+    bool alive = true;
+
+    /**
+     * Default constructor, creates an entity that is alive at specified position
+     */
+    Entity(int c, int l)
+    {
+        column = c;
+        line = l;
+    }
+};
+
+/**
+ * This struct holds all the information needed for a game to be played
+ */
+struct Maze
+{
+    /** Size of the maze on the x-axis */
+    int nCols;
+    /** Size of the maze on the y-axis */
+    int nRows;
+
+    /** The maze number, "01" to "99", used to save high scores at the end of the game */
+    string mazeNumber;
+    /** When the player started playing */
+    chrono::steady_clock::time_point startTime;
+
+    /** The collision map, each value represents a tile of the maze, if it's true it's solid */
+    vector<bool> collisionMap;
+    /** The visual map, each value is the character representation of a tile of the maze */
+    vector<char> visualMap;
+    /** A vector that holds all the robots */
+    vector<Entity> robots;
+    /** The player */
+    Entity player = Entity(0, 0);
 };
 
 /**
@@ -19,23 +59,28 @@ struct LiveBeing
  */
 enum class GameState
 {
-    mainMenu, // Game is in the main menu
-    mazeMenu, // User is selecting the maze
-    inGame,   // User is playing game
-    finished  // Game has finished and the user is entering their name
+    /** Game is in the main menu */
+    mainMenu,
+    /** User is selecting the maze */
+    mazeMenu,
+    /** User is playing game */
+    inGame,
+    /** Game has finished and the user is entering their name */
+    finished
 };
 
 /**
  * Gets a line from stdin and returns false if the eof bit is set
+ * 
+ * @param input Where to store the input
+ * @returns false if the eof bit is set, true otherwise
  */
 bool getInput(string &input)
 {
     getline(cin, input);
 
     if (cin.eof())
-    {
         return false;
-    }
 
     return true;
 }
@@ -45,21 +90,32 @@ bool getInput(string &input)
  */
 void printRules()
 {
-    cout << "\nSymbols meaning: \n   ->* = electrical fence or post\n   ->H = player (alive); h = player (dead); the player dies when he/she collides with a fence or a post, or is captured by a robot;\n";
-    cout << "   ->R = robot(alive); r = robot(destroyed = dead / stuck); a dead robot is one that collided with a fence or a post;\na stuck robot is one that collided with another robot(alive or destroyed)\n";
-    cout << "\nHow to play: \n   ->The player can only move to one of the 8 neighbour cells of his/her current cell. The movement is indicated by \ntyping one of the letters indicated below (the position of each letter relatively to the player's position \nindicates the movement that the player wants to do):\n";
-    cout << setw(8) << 'Q' << setw(10) << 'W' << setw(13) << 'E' << '\n';
-    cout << setw(8) << 'A' << setw(20) << "player's position" << setw(3) << 'D' << '\n';
-    cout << setw(8) << 'Z' << setw(10) << 'X' << setw(13) << 'C' << '\n';
-    cout << "   ->The player has the option to stay in his/her current position by typing 'S'.\n";
-    cout << "   ->The above mentioned letters may be typed in uppercase or lowercase. If the user inputs an invalid letter/symbol, \nthe input must be repeated.\n";
-    cout << "   ->The player should not be allowed to move to cells occupied by destroyed robots; if he/she tries to do so, he/she \nmust be informed that the movement is invalid and asked for a new movement.\n";
-    cout << "   ->The player can exit the game at any moment by typing CTRL-Z, in Windows, or CTRL-D, in Linux.\n\n";
+    cout << "\nSymbols meaning: \n"
+            "   ->* = electrical fence or post\n"
+            "   ->H = player (alive); h = player (dead); the player dies when he/she collides with a fence or a post, or is captured by a robot;\n"
+            "   ->R = robot (alive); r = robot (destroyed = dead / stuck); a dead robot is one that collided with a fence or a post;\n"
+            "a stuck robot is one that collided with another robot(alive or destroyed)\n\n"
+
+            "How to play: \n"
+            "   ->The player can only move to one of the 8 neighbour cells of his/her current cell. The movement is indicated by \n"
+            "typing one of the letters indicated below (the position of each letter relatively to the player's position \n"
+            "indicates the movement that the player wants to do):\n"
+         << setw(8) << 'Q' << setw(10) << 'W' << setw(13) << 'E' << '\n'
+         << setw(8) << 'A' << setw(20) << "player's position" << setw(3) << 'D' << '\n'
+         << setw(8) << 'Z' << setw(10) << 'X' << setw(13) << 'C' << '\n'
+         << "   ->The player has the option to stay in his/her current position by typing 'S'.\n"
+            "   ->The above mentioned letters may be typed in uppercase or lowercase. If the user inputs an invalid letter/symbol, \n"
+            "the input must be repeated.\n"
+            "   ->The player should not be allowed to move to cells occupied by destroyed robots; if he/she tries to do so, he/she \n"
+            "must be informed that the movement is invalid and asked for a new movement.\n"
+            "   ->The player can exit the game at any moment by typing CTRL-Z, in Windows, or CTRL-D, in Linux.\n\n";
 }
 
 /**
  * The start of the game. Asks the user what he wants to do
- * Returns false if the user wants to exit the game
+ * 
+ * @param gameState The game state
+ * @returns false if the user wants to exit the game
  */
 bool mainMenu(GameState &gameState)
 {
@@ -91,41 +147,121 @@ bool mainMenu(GameState &gameState)
     return true;
 }
 
-void mazeOpen(vector<string> &maze)
+/**
+ * Checks if a maze number is valid.
+ * A number is considered valid if it falls in the range "00" to "99" (needs two characters).
+ * 
+ * @param number The maze number
+ * @returns true if the number is valid
+ */
+bool validMazeNumber(const string &number)
 {
-    string number, filename, tryy, sizeMaze, temp;
-	cout << "inserte number of the maze (format XX): "; 
-	cin >> number;
-	filename = "MAZE_" + number + ".txt";
-	ifstream infile;
-	infile.open(filename); 
-	if (!infile.is_open())
-	{
-		cerr << "Error opening " << filename << "\n";
-		exit(1);
-	}
-	infile >> sizeMaze;
-	while (!infile.eof())
-	{
-        getline(infile, temp);
-        maze.push_back(temp);
-	}
-    infile.close();
-    for (int i = 0; i < maze.size(); i++)
-        cout << maze[i] << endl;
+    return number.length() == 2 && isdigit(number.at(0)) && isdigit(number.at(1));
 }
 
+/**
+ * Receives input from the player and loads the respective maze
+ * 
+ * @param gameState The game state
+ * @param maze Where the maze is stored
+ * 
+ * @returns false if the player wants to exit the game
+ */
+bool mazeMenu(GameState &gameState, Maze &maze)
+{
+    // Reset maze variable
+    maze = Maze();
+
+    // Ask user for input
+    cout << "Input number of the maze: ";
+
+    // Get input
+    if (!getInput(maze.mazeNumber))
+        return false;
+
+    // Pad out maze number
+    // "" -> "0" -> "00"
+    // "5" -> "05"
+    while (maze.mazeNumber.length() < 2)
+    {
+        maze.mazeNumber = "0"s + maze.mazeNumber;
+    }
+
+    // User wants to return to main menu
+    if (maze.mazeNumber == "00")
+    {
+        gameState = GameState::mainMenu;
+    }
+
+    // Maze number is invalid
+    if (!validMazeNumber(maze.mazeNumber))
+    {
+        cout << "\nInvalid input!\n\n";
+        return true;
+    }
+
+    // Construct file name
+    string filename = "MAZE_"s + maze.mazeNumber + ".txt"s;
+
+    // Open file
+    ifstream infile;
+    infile.open(filename);
+    // File doesn't exist
+    if (!infile.is_open())
+    {
+        cout << "\nFile " << filename << " not found!\n\n";
+        return true;
+    }
+
+    // Get number of rows and columns from top of file
+    int nRows, nCols;
+    char x;
+    infile >> nRows >> x >> nCols;
+
+    // Load maze
+    for (int i = 0; i < nRows; i++)
+    {
+        // Ignore \n
+        infile.ignore();
+
+        for (int j = 0; j < nCols; j++)
+        {
+            char c;
+            infile.get(c);
+
+            if (c == '*')
+                // Tile is a post/fence
+                maze.collisionMap.push_back(true);
+            else
+                // Tile is not a post/fence
+                maze.collisionMap.push_back(false);
+
+            if (c == 'R')
+                // Tile is a robot
+                maze.robots.push_back(Entity(j, i));
+            else if (c == 'H')
+                // Tile is the player
+                maze.player = Entity(j, i);
+        }
+    }
+
+    // Start the game
+    gameState = GameState::inGame;
+    maze.startTime = chrono::steady_clock::now();
+    return true;
+}
 
 /**
-recives de input of the player and moves it accordingly
-@param n1: player position
-*/
-void movePlayer(LiveBeing &player)
+ * Receives the input from the player and moves them accordingly.
+ * 
+ * @param player The player
+ */
+void movePlayer(Entity &player)
 {
     char move;
     cout << "insert movement: ";
     cin >> move;
-    
+
     if (cin.fail())
     {
         cout << "\nInvalid input!\n\n";
@@ -136,46 +272,55 @@ void movePlayer(LiveBeing &player)
     if (move == 'Q' || move == 'q')
     {
         player.line -= 1;
-        player.colune -= 1;
+        player.column -= 1;
     }
-    else if (move == 'W' || move == 'w') player.line -= 1;
+    else if (move == 'W' || move == 'w')
+        player.line -= 1;
     else if (move == 'E' || move == 'e')
     {
         player.line -= 1;
-        player.colune += 1;
+        player.column += 1;
     }
-    else if (move == 'A' || move == 'a') player.colune -= 1;
-    else if (move == 'S' || move == 's');
-    else if (move == 'D' || move == 'd') player.colune += 1;
+    else if (move == 'A' || move == 'a')
+        player.column -= 1;
+    else if (move == 'S' || move == 's')
+        ;
+    else if (move == 'D' || move == 'd')
+        player.column += 1;
     else if (move == 'Z' || move == 'z')
     {
         player.line += 1;
-        player.colune -= 1;
+        player.column -= 1;
     }
-    else if (move == 'X' || move == 'x') player.line += 1;
+    else if (move == 'X' || move == 'x')
+        player.line += 1;
     else if (move == 'C' || move == 'c')
     {
         player.line += 1;
-        player.colune += 1;
+        player.column += 1;
     }
     else
         cout << "\nInvalid input!\n\n";
 }
 
-void checkPlayerandRobot(LiveBeing& player, vector<LiveBeing>& robots)
+void checkPlayerandRobot(Entity &player, vector<Entity> &robots)
 {
     for (int i = 0; i < robots.size(); i++)
     {
-        if (robots[i].line == player.line && robots[i].colune == player.line && robots[i].alive)
+        if (robots[i].line == player.line && robots[i].column == player.line && robots[i].alive)
             player.alive = false;
     }
 }
 
 int main()
 {
-    bool running = true; 
+    /** Whether the program is running */
+    bool running = true;
+    /** The game state */
     GameState gameState = GameState::mainMenu;
-    time_t timeBegining;
+    /** Information about the maze */
+    Maze maze;
+
     while (running)
     {
         switch (gameState)
@@ -184,7 +329,7 @@ int main()
             running = mainMenu(gameState);
             break;
         case GameState::mazeMenu:
-            cout << "MAZE MENU\n";
+            running = mazeMenu(gameState, maze);
             break;
         case GameState::inGame:
             break;
