@@ -356,7 +356,48 @@ void checkBeingandFence(Entity& being, Maze maze)
     if (maze.fenceMap[i] == true) being.alive = false;
 }
 
-void moveRobot
+void moveRobot(vector<Entity>& robots, Entity player)
+{
+    for (Entity& robot : robots)
+    {
+        //if the robot and the player are in the same line
+        if (robot.line == player.line)
+        {
+            if (robot.line < player.line) robot.line += 1;
+            else if (robot.line > player.line) robot.line -= 1;
+        }
+        //if the robot and the player are in the same col
+        if (robot.column == player.column)
+        {
+            if (robot.column < player.column) robot.column += 1;
+            else if (robot.column > player.column) robot.column -= 1;
+        }
+        //if the player is at northwest of the robot
+        if (robot.column < player.column && robot.line < player.line)
+        {
+            robot.column -= 1;
+            robot.line -= 1;
+        }
+        //if the player is at south-west of the robot
+        if (robot.column < player.column && robot.line > player.line)
+        {
+            robot.column -= 1;
+            robot.line += 1;
+        }
+        //if the player is at the southeast of the robot
+        if (robot.column > player.column && robot.line > player.line)
+        {
+            robot.column += 1;
+            robot.line += 1;
+        }
+        //if the player is at north east of the robot
+        if (robot.column > player.column && robot.line < player.line)
+        {
+            robot.column += 1;
+            robot.line -= 1;
+        }
+    }
+}
 
 int main()
 {
