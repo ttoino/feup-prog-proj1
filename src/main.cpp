@@ -369,14 +369,14 @@ void moveRobot(vector<Entity>& robots, Entity player)
         //if the robot and the player are in the same line
         if (robot.line == player.line)
         {
-            if (robot.line < player.line) robot.line += 1;
-            else if (robot.line > player.line) robot.line -= 1;
+            if (robot.column < player.column) robot.line += 1;
+            else if (robot.column > player.column) robot.line -= 1;
         }
         //if the robot and the player are in the same col
         if (robot.column == player.column)
         {
-            if (robot.column < player.column) robot.column += 1;
-            else if (robot.column > player.column) robot.column -= 1;
+            if (robot.line < player.line) robot.column += 1;
+            else if (robot.line > player.line) robot.column -= 1;
         }
         //if the player is at northwest of the robot
         if (robot.column > player.column && robot.line > player.line)
