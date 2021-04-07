@@ -85,6 +85,11 @@ bool getInput(string &input)
     return true;
 }
 
+size_t getEntityIndex(const Maze &maze, const Entity &entity)
+{
+    return entity.line * maze.nCols + entity.column;
+}
+
 /**
  * Prints the rules of the game
  */
@@ -306,9 +311,9 @@ void movePlayer(Entity &player)
 /**
  * checks if the player position is the same as the Robots (if they collied)
  *
- * @param1 player The player
- * @param2 vector with the positions of the robots
- * @param3 position of the player before the movement
+ * @param player The player
+ * @param robots vector with the positions of the robots
+ * @param positionBefore position of the player before the movement
  */
 void checkPlayerandRobot(Entity &player, vector<Entity> &robots, Entity positionBefore)
 {
@@ -329,7 +334,7 @@ void checkPlayerandRobot(Entity &player, vector<Entity> &robots, Entity position
  *
  * @param vector with the positions of the robots
  */
-void checkRobotandRobot(vector<Entity>& robots)
+void checkRobotandRobot(vector<Entity> &robots)
 {
     for (int i = 0; i < robots.size(); i++)
     {
@@ -350,10 +355,11 @@ void checkRobotandRobot(vector<Entity>& robots)
  * @param1  the positions of the being
  * @param2  the maze
  */
-void checkBeingandFence(Entity& being, Maze maze)
+void checkBeingandFence(Entity &being, Maze maze)
 {
-    size_t i = being.line * maze.nCols + being.column; 
-    if (maze.fenceMap[i] == true) being.alive = false;
+    size_t i = being.line * maze.nCols + being.column;
+    if (maze.fenceMap[i] == '*')
+        being.alive = false;
 }
 
 /**
@@ -362,21 +368,25 @@ void checkBeingandFence(Entity& being, Maze maze)
  * @param1  vector with the positions of the robots
  * @param2  position of the player
  */
-void moveRobot(vector<Entity>& robots, Entity player)
+void moveRobot(vector<Entity> &robots, Entity player)
 {
-    for (Entity& robot : robots)
+    for (Entity &robot : robots)
     {
         //if the robot and the player are in the same line
         if (robot.line == player.line)
         {
-            if (robot.column < player.column) robot.line += 1;
-            else if (robot.column > player.column) robot.line -= 1;
+            if (robot.column < player.column)
+                robot.line += 1;
+            else if (robot.column > player.column)
+                robot.line -= 1;
         }
         //if the robot and the player are in the same col
         if (robot.column == player.column)
         {
-            if (robot.line < player.line) robot.column += 1;
-            else if (robot.line > player.line) robot.column -= 1;
+            if (robot.line < player.line)
+                robot.column += 1;
+            else if (robot.line > player.line)
+                robot.column -= 1;
         }
         //if the player is at northwest of the robot
         if (robot.column > player.column && robot.line > player.line)
@@ -405,6 +415,30 @@ void moveRobot(vector<Entity>& robots, Entity player)
     }
 }
 
+void updateVisualMap(Maze &maze)
+{
+    maze.visualMap = maze.fenceMap;
+
+    for (const Entity &r : maze.robots)
+    {
+        maze.visualMap.at(r.line * maze.nCols + r.column) = r.alive ? 'R' : 'r';
+    }
+
+    maze.visualMap.at(maze.player.line * maze.nCols + maze.player.column) = maze.player.alive ? 'H' : 'h';
+}
+
+void displayMaze(const Maze &maze)
+{
+    for (size_t i = 0; i < maze.visualMap.size(); i++)
+    {
+        if (i % maze.nCols == 0)
+            cout << '\n';
+
+        // cout << maze.visualMap.at(i);
+        cout << maze.visualMap.at(i);
+    }
+}
+
 int main()
 {
     /** Whether the program is running */
@@ -414,8 +448,12 @@ int main()
     /** Information about the maze */
     Maze maze;
 
+    string s;
+
     while (running)
     {
+        Entity before = maze.player;
+
         switch (gameState)
         {
         case GameState::mainMenu:
@@ -425,6 +463,18 @@ int main()
             running = mazeMenu(gameState, maze);
             break;
         case GameState::inGame:
+            updateVisualMap(maze);
+            displayMaze(maze);
+            cout << '\n';
+
+            movePlayer(maze.player);
+            checkBeingandFence(maze.player, maze);
+
+            moveRobot(maze.robots, maze.player);
+            checkPlayerandRobot(maze.player, maze.robots, before);
+            running = getInput(s);
+
+            cout << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count() << "\n";
             break;
         case GameState::finished:
             break;
