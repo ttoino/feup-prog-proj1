@@ -372,6 +372,9 @@ void moveRobot(vector<Entity> &robots, Entity player)
 {
     for (Entity &robot : robots)
     {
+        if (!robot.alive)
+            continue;
+
         //if the robot and the player are in the same line
         if (robot.line == player.line)
         {
@@ -434,7 +437,6 @@ void displayMaze(const Maze &maze)
         if (i % maze.nCols == 0)
             cout << '\n';
 
-        // cout << maze.visualMap.at(i);
         cout << maze.visualMap.at(i);
     }
 }
@@ -472,6 +474,10 @@ int main()
 
             moveRobot(maze.robots, maze.player);
             checkPlayerandRobot(maze.player, maze.robots, before);
+
+            for (Entity &r : maze.robots)
+                checkBeingandFence(r, maze);
+
             running = getInput(s);
 
             cout << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count() << "\n";
