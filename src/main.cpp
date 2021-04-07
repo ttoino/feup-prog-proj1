@@ -35,18 +35,18 @@ struct Entity
 struct Maze
 {
     /** Size of the maze on the x-axis */
-    int nCols;
+    size_t nCols;
     /** Size of the maze on the y-axis */
-    int nRows;
+    size_t nRows;
 
     /** The maze number, "01" to "99", used to save high scores at the end of the game */
     string mazeNumber;
     /** When the player started playing */
     chrono::steady_clock::time_point startTime;
 
-    /** The collision map, each value represents a tile of the maze, if it's true it's solid */
-    vector<bool> collisionMap;
-    /** The visual map, each value is the character representation of a tile of the maze */
+    /** Maze map containing only the fences/posts */
+    vector<char> fenceMap;
+    /** The full maze map, created from the fenceMap */
     vector<char> visualMap;
     /** A vector that holds all the robots */
     vector<Entity> robots;
@@ -214,27 +214,26 @@ bool mazeMenu(GameState &gameState, Maze &maze)
     }
 
     // Get number of rows and columns from top of file
-    int nRows, nCols;
     char x;
-    infile >> nRows >> x >> nCols;
+    infile >> maze.nRows >> x >> maze.nCols;
 
     // Load maze
-    for (int i = 0; i < nRows; i++)
+    for (size_t i = 0; i < maze.nRows; i++)
     {
         // Ignore \n
         infile.ignore();
 
-        for (int j = 0; j < nCols; j++)
+        for (size_t j = 0; j < maze.nCols; j++)
         {
             char c;
             infile.get(c);
 
             if (c == '*')
                 // Tile is a post/fence
-                maze.collisionMap.push_back(true);
+                maze.fenceMap.push_back('*');
             else
                 // Tile is not a post/fence
-                maze.collisionMap.push_back(false);
+                maze.fenceMap.push_back(' ');
 
             if (c == 'R')
                 // Tile is a robot
@@ -244,6 +243,8 @@ bool mazeMenu(GameState &gameState, Maze &maze)
                 maze.player = Entity(j, i);
         }
     }
+
+    infile.close();
 
     // Start the game
     gameState = GameState::inGame;
