@@ -262,7 +262,6 @@ void movePlayer(Entity &player)
     char move;
     cout << "insert movement: ";
     cin >> move;
-
     if (cin.fail())
     {
         cout << "\nInvalid input!\n\n";
@@ -304,14 +303,60 @@ void movePlayer(Entity &player)
         cout << "\nInvalid input!\n\n";
 }
 
-void checkPlayerandRobot(Entity &player, vector<Entity> &robots)
+/**
+ * checks if the player position is the same as the Robots (if they collied)
+ *
+ * @param1 player The player
+ * @param2 vector with the positions of the robots
+ * @param3 position of the player before the movement
+ */
+void checkPlayerandRobot(Entity &player, vector<Entity> &robots, Entity positionBefore)
 {
     for (int i = 0; i < robots.size(); i++)
     {
         if (robots[i].line == player.line && robots[i].column == player.line && robots[i].alive)
             player.alive = false;
+        else if (robots[i].line == player.line && robots[i].column == player.line && !robots[i].alive)
+        {
+            cout << "Cell ocupied by a dead robot, please try again.\n";
+            player = positionBefore;
+        }
     }
 }
+
+/**
+ * checks if two robots collied
+ *
+ * @param vector with the positions of the robots
+ */
+void checkRobotandRobot(vector<Entity>& robots)
+{
+    for (int i = 0; i < robots.size(); i++)
+    {
+        for (int j = i + 1; j < robots.size() - 1; j++)
+        {
+            if (robots[i].line == robots[j].line && robots[i].column == robots[j].line)
+            {
+                robots[i].alive = false;
+                robots[j].alive = false;
+            }
+        }
+    }
+}
+
+/**
+ * checks if a player or a robots collides with the fence
+ *
+ * @param1  the positions of the being
+ * @param2  the maze
+ */
+void checkBeingandFence(Entity& being, Maze maze)
+{
+    size_t i = being.line * maze.nCols + being.column; 
+    if (maze.fenceMap[i] == true) being.alive = false;
+}
+
+void moveRobot
 
 int main()
 {
