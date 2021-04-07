@@ -379,7 +379,7 @@ void moveRobot(vector<Entity>& robots, Entity player)
             else if (robot.column > player.column) robot.column -= 1;
         }
         //if the player is at northwest of the robot
-        if (robot.column < player.column && robot.line < player.line)
+        if (robot.column > player.column && robot.line > player.line)
         {
             robot.column -= 1;
             robot.line -= 1;
