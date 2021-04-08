@@ -13,16 +13,16 @@ using namespace std;
 struct Entity
 {
     /** Position on the x-axis */
-    int column;
+    size_t column;
     /** Position on the y-axis */
-    int line;
+    size_t line;
     /** Whether the entity is alive or dead */
     bool alive = true;
 
     /**
      * Default constructor, creates an entity that is alive at specified position
      */
-    Entity(int c, int l)
+    Entity(size_t c, size_t l)
     {
         column = c;
         line = l;
@@ -85,13 +85,19 @@ bool getInput(string &input)
     return true;
 }
 
+/**
+ * @param maze The maze the entity is in
+ * @param entity The entity you want the index of
+ * 
+ * @returns The entity's index on the maze maps
+ */
 size_t getEntityIndex(const Maze &maze, const Entity &entity)
 {
     return entity.line * maze.nCols + entity.column;
 }
 
 /**
- * Prints the rules of the game
+ * Prints the game's rules
  */
 void printRules()
 {
@@ -418,6 +424,11 @@ void moveRobot(vector<Entity> &robots, Entity player)
     }
 }
 
+/**
+ * Updates the maze's visualMap with the robots and the player
+ * 
+ * @param maze The maze
+ */
 void updateVisualMap(Maze &maze)
 {
     maze.visualMap = maze.fenceMap;
@@ -430,6 +441,11 @@ void updateVisualMap(Maze &maze)
     maze.visualMap.at(maze.player.line * maze.nCols + maze.player.column) = maze.player.alive ? 'H' : 'h';
 }
 
+/**
+ * Prints the maze's visualMap
+ * 
+ * @param maze The maze
+ */
 void displayMaze(const Maze &maze)
 {
     for (size_t i = 0; i < maze.visualMap.size(); i++)
