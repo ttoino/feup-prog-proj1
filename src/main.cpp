@@ -4,8 +4,11 @@
 #include <iomanip>
 #include <fstream>
 #include <chrono>
+#include <unordered_map>
 
 using namespace std;
+
+using Leaderboard = unordered_map<string, unsigned int>;
 
 /**
  * This struct represents a robot or the player
@@ -474,6 +477,60 @@ void displayMaze(const Maze &maze)
             cout << '\n';
 
         cout << maze.visualMap.at(i);
+    }
+}
+
+void readLeaderboard(const string &mazeNumber, Leaderboard &leaderboard)
+{
+    string fileName = "MAZE_"s + mazeNumber + "_WINNERS.txt"s;
+
+    ifstream file;
+    file.open(fileName);
+
+    // File doesn't exist
+    if (!file.is_open())
+        return;
+
+    // Ignore header
+    file.ignore(100, '\n');
+    file.ignore(100, '\n');
+
+    while (!file.eof())
+    {
+        string name;
+        char c;
+        do
+        {
+            c = file.get();
+            name += c;
+        } while (!(c == ' ' && file.peek() == ' ') && name.length() < 15);
+        name.pop_back();
+
+        // Ignore dash
+        file >> c;
+
+        file >> leaderboard[name];
+
+        // Ignore \n
+        file.ignore();
+    }
+
+    file.close();
+}
+
+void saveLeaderboard(const string &mazeNumber, const Leaderboard &leaderboard)
+{
+    string fileName = "MAZE_"s + mazeNumber + "_WINNERS.txt"s;
+
+    ofstream file;
+    file.open(fileName);
+
+    // Add header
+    file << "Player          - Time\n----------------------\n";
+
+    for (auto p : leaderboard)
+    {
+        file << setw(16) << left << p.first << '-' << setw(5) << right << p.second << '\n';
     }
 }
 
