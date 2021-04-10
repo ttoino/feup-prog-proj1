@@ -537,7 +537,7 @@ void saveLeaderboard(const string &mazeNumber, const Leaderboard &leaderboard)
 int main()
 {
     /** Whether the program is running */
-    bool running = true;
+    bool running = true, bool winGame=false;
     /** The game state */
     GameState gameState = GameState::mainMenu;
     /** Information about the maze */
@@ -578,7 +578,8 @@ int main()
             } 
             break;
         case GameState::finished:
-            cout<<chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count()<<endl;
+            if (maze.player.alive)
+                cout<<chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count()<<endl;
             gameState = GameState::mainMenu;
             break;
         }
