@@ -332,9 +332,9 @@ void checkPlayerandRobot(Entity &player, vector<Entity> &robots, Entity position
 {
     for (int i = 0; i < robots.size(); i++)
     {
-        if (robots[i].line == player.line && robots[i].column == player.line && robots[i].alive)
+        if (robots[i].line == player.line && robots[i].column == player.column && robots[i].alive)
             player.alive = false;
-        else if (robots[i].line == player.line && robots[i].column == player.line && !robots[i].alive)
+        else if (robots[i].line == player.line && robots[i].column == player.column && !robots[i].alive)
         {
             cout << "Cell ocupied by a dead robot, please try again.\n";
             player = positionBefore;
@@ -537,7 +537,7 @@ void saveLeaderboard(const string &mazeNumber, const Leaderboard &leaderboard)
 int main()
 {
     /** Whether the program is running */
-    bool running = true, bool winGame=false;
+    bool running = true;
     /** The game state */
     GameState gameState = GameState::mainMenu;
     /** Information about the maze */
@@ -579,7 +579,19 @@ int main()
             break;
         case GameState::finished:
             if (maze.player.alive)
-                cout<<chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count()<<endl;
+            {
+                cout << "YEYYYYYYYY YOU WONNN CONGRATS :)\n";
+                Leaderboard leaderboard;
+                string name;
+                readLeaderboard(maze.mazeNumber, leaderboard);
+                cout << "Please inser the winning name: ";
+                cin.ignore();
+                getline(cin, name);
+                int time = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count();
+                leaderboard[name] = time;
+                saveLeaderboard(maze.mazeNumber, leaderboard);
+            }
+                
             gameState = GameState::mainMenu;
             break;
         }
