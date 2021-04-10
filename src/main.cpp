@@ -563,6 +563,7 @@ int main()
             cout << '\n';
 
             robotsDead(maze.robots, gameState);
+
             if (!movePlayer(maze.player)) running = false;
 
             checkBeingandFence(maze.player, maze);
