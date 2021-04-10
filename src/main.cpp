@@ -580,18 +580,18 @@ int main()
         case GameState::finished:
             if (maze.player.alive)
             {
-                cout << "YEYYYYYYYY YOU WONNN CONGRATS :)\n";
+                cout << "\n_____________________\nCONGRATS YOU WONNN :)\n\n";
                 Leaderboard leaderboard;
                 string name;
                 readLeaderboard(maze.mazeNumber, leaderboard);
-                cout << "Please inser the winning name: ";
+                cout << "Please insert the winning name: ";
                 cin.ignore();
                 getline(cin, name);
                 int time = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count();
                 leaderboard[name] = time;
                 saveLeaderboard(maze.mazeNumber, leaderboard);
             }
-                
+            else cout << "\n____________\nGAME OVER :( \n\n";
             gameState = GameState::mainMenu;
             break;
         }
