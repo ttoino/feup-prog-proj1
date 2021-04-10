@@ -562,8 +562,6 @@ int main()
             displayMaze(maze);
             cout << '\n';
 
-            robotsDead(maze.robots, gameState);
-
             if (!movePlayer(maze.player)) running = false;
 
             checkBeingandFence(maze.player, maze);
@@ -573,10 +571,11 @@ int main()
 
             for (Entity &r : maze.robots)
                 checkBeingandFence(r, maze);
+            robotsDead(maze.robots, gameState);
             if (!maze.player.alive)
             {
                 gameState = GameState::finished;
-            }
+            } 
             break;
         case GameState::finished:
             cout<<chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count()<<endl;
