@@ -38,7 +38,6 @@ struct Maze
     size_t nCols;
     /** Size of the maze on the y-axis */
     size_t nRows;
-
     /** The maze number, "01" to "99", used to save high scores at the end of the game */
     string mazeNumber;
     /** When the player started playing */
@@ -265,19 +264,23 @@ bool mazeMenu(GameState &gameState, Maze &maze)
 
 /**
  * Receives the input from the player and moves them accordingly.
- * 
+ * Ends the game if the user pressed crt-Z by returning false
  * @param player The player
  */
-void movePlayer(Entity &player)
+bool movePlayer(Entity &player)
 {
     char move;
     cout << "insert movement: ";
     cin >> move;
     if (cin.fail())
     {
-        cout << "\nInvalid input!\n\n";
-        cin.clear();
-        cin.ignore(10000, '\n');
+        if (cin.eof()) return false;
+        else
+        {
+            cout << "\nInvalid input!\n\n";
+            cin.clear();
+            cin.ignore(10000, '\n');
+        }
     }
 
     if (move == 'Q' || move == 'q')
@@ -312,6 +315,7 @@ void movePlayer(Entity &player)
     }
     else
         cout << "\nInvalid input!\n\n";
+    return true;
 }
 
 /**
@@ -365,7 +369,10 @@ void checkBeingandFence(Entity &being, Maze maze)
 {
     size_t i = being.line * maze.nCols + being.column;
     if (maze.fenceMap[i] == '*')
+    {
         being.alive = false;
+    }
+
 }
 
 /**
@@ -421,6 +428,19 @@ void moveRobot(vector<Entity> &robots, Entity player)
             robot.column += 1;
             robot.line -= 1;
         }
+    }
+}
+
+void robotsDead(vector<Entity>& robots, GameState& gameState)
+{
+    bool allDead = true;
+    for (Entity& robot : robots)
+    {
+        if (robot.alive) allDead = false;
+    }
+    if (allDead)
+    {
+        gameState = GameState::finished;
     }
 }
 
@@ -485,7 +505,9 @@ int main()
             displayMaze(maze);
             cout << '\n';
 
-            movePlayer(maze.player);
+            robotsDead(maze.robots, gameState);
+            if (!movePlayer(maze.player)) running = false;
+
             checkBeingandFence(maze.player, maze);
 
             moveRobot(maze.robots, maze.player);
@@ -493,12 +515,14 @@ int main()
 
             for (Entity &r : maze.robots)
                 checkBeingandFence(r, maze);
-
-            running = getInput(s);
-
-            cout << chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count() << "\n";
+            if (!maze.player.alive)
+            {
+                gameState = GameState::finished;
+            }
             break;
         case GameState::finished:
+            cout<<chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count()<<endl;
+            gameState = GameState::mainMenu;
             break;
         }
     }
