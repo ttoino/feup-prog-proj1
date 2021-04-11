@@ -277,7 +277,8 @@ bool movePlayer(Entity &player)
     cin >> move;
     if (cin.fail())
     {
-        if (cin.eof()) return false;
+        if (cin.eof())
+            return false;
         else
         {
             cout << "\nInvalid input!\n\n";
@@ -375,7 +376,6 @@ void checkBeingandFence(Entity &being, Maze maze)
     {
         being.alive = false;
     }
-
 }
 
 /**
@@ -434,12 +434,13 @@ void moveRobot(vector<Entity> &robots, Entity player)
     }
 }
 
-void robotsDead(vector<Entity>& robots, GameState& gameState)
+void robotsDead(vector<Entity> &robots, GameState &gameState)
 {
     bool allDead = true;
-    for (Entity& robot : robots)
+    for (Entity &robot : robots)
     {
-        if (robot.alive) allDead = false;
+        if (robot.alive)
+            allDead = false;
     }
     if (allDead)
     {
@@ -543,8 +544,6 @@ int main()
     /** Information about the maze */
     Maze maze;
 
-    string s;
-
     while (running)
     {
         Entity before = maze.player;
@@ -562,7 +561,17 @@ int main()
             displayMaze(maze);
             cout << '\n';
 
-            if (!movePlayer(maze.player)) running = false;
+            robotsDead(maze.robots, gameState);
+            if (!maze.player.alive)
+            {
+                gameState = GameState::finished;
+            }
+
+            if (gameState == GameState::finished)
+                continue;
+
+            if (!movePlayer(maze.player))
+                running = false;
 
             checkBeingandFence(maze.player, maze);
 
@@ -571,11 +580,6 @@ int main()
 
             for (Entity &r : maze.robots)
                 checkBeingandFence(r, maze);
-            robotsDead(maze.robots, gameState);
-            if (!maze.player.alive)
-            {
-                gameState = GameState::finished;
-            } 
             break;
         case GameState::finished:
             if (maze.player.alive)
@@ -591,7 +595,8 @@ int main()
                 leaderboard[name] = time;
                 saveLeaderboard(maze.mazeNumber, leaderboard);
             }
-            else cout << "\n____________\nGAME OVER :( \n\n";
+            else
+                cout << "\n____________\nGAME OVER :( \n\n";
             gameState = GameState::mainMenu;
             break;
         }
