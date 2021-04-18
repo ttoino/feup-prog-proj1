@@ -8,6 +8,13 @@
 
 using namespace std;
 
+const string GENERIC_ERROR = "Invalid input!"s;
+const string CELL_OCCUPIED = "That cell is occupied!"s;
+const string OUT_OF_BOUNDS = "Cannot move out of bounds!"s;
+const string INVALID_MAZE_NUMBER = "Must be a number from 1 to 99!"s;
+const string MAZE_NOT_FOUND = "That maze could not be found!"s;
+const string INVALID_NAME = "Must have 15 characters or fewer!"s;
+
 using Leaderboard = unordered_map<string, unsigned int>;
 
 /**
@@ -40,7 +47,7 @@ struct Maze
     /** Size of the maze on the x-axis */
     size_t nCols;
     /** Size of the maze on the y-axis */
-    size_t nRows;
+    size_t nLines;
     /** The maze number, "01" to "99", used to save high scores at the end of the game */
     string mazeNumber;
     /** When the player started playing */
@@ -54,6 +61,11 @@ struct Maze
     vector<Entity> robots;
     /** The player */
     Entity player = Entity(0, 0);
+
+    size_t index(const size_t column, const size_t line) const
+    {
+        return line * nCols + column;
+    }
 };
 
 /**
@@ -87,15 +99,9 @@ bool getInput(string &input)
     return true;
 }
 
-/**
- * @param maze The maze the entity is in
- * @param entity The entity you want the index of
- * 
- * @returns The entity's index on the maze maps
- */
-size_t getEntityIndex(const Maze &maze, const Entity &entity)
+int sign(int x)
 {
-    return entity.line * maze.nCols + entity.column;
+    return (x > 0) - (x < 0);
 }
 
 /**
@@ -130,20 +136,24 @@ void printRules()
  * @param gameState The game state
  * @returns false if the user wants to exit the game
  */
-bool mainMenu(GameState &gameState)
+bool mainMenu(GameState &gameState, bool &validInput, string &errorMessage)
 {
     string input;
 
     // Print menu
-    cout << "Main menu: \n\n"
-            "1) Rules \n"
-            "2) Play \n"
-            "0) Exit \n\n"
-            "Please insert option (number): ";
+    if (validInput)
+        cout << "Main menu: \n\n"
+                "1) Rules \n"
+                "2) Play \n"
+                "0) Exit \n\n";
+
+    cout << "Please insert option: ";
 
     // Get input
     if (!getInput(input))
         return false; // EOF, exit game
+
+    validInput = true;
 
     if (input == "1")
         printRules(); // Show the rules
@@ -155,7 +165,10 @@ bool mainMenu(GameState &gameState)
         return false; // Leave the game
 
     else
-        cout << "\nInvalid input!\n\n";
+    {
+        validInput = false;
+        errorMessage = GENERIC_ERROR;
+    }
 
     return true;
 }
@@ -180,10 +193,12 @@ bool validMazeNumber(const string &number)
  * 
  * @returns false if the player wants to exit the game
  */
-bool mazeMenu(GameState &gameState, Maze &maze)
+bool mazeMenu(GameState &gameState, Maze &maze, bool &validInput, string &errorMessage)
 {
     // Reset maze variable
     maze = Maze();
+
+    validInput = true;
 
     // Ask user for input
     cout << "Input number of the maze: ";
@@ -204,12 +219,14 @@ bool mazeMenu(GameState &gameState, Maze &maze)
     if (maze.mazeNumber == "00")
     {
         gameState = GameState::mainMenu;
+        return true;
     }
 
     // Maze number is invalid
     if (!validMazeNumber(maze.mazeNumber))
     {
-        cout << "\nInvalid input!\n\n";
+        validInput = false;
+        errorMessage = INVALID_MAZE_NUMBER;
         return true;
     }
 
@@ -222,16 +239,17 @@ bool mazeMenu(GameState &gameState, Maze &maze)
     // File doesn't exist
     if (!infile.is_open())
     {
-        cout << "\nFile " << filename << " not found!\n\n";
+        validInput = false;
+        errorMessage = MAZE_NOT_FOUND;
         return true;
     }
 
     // Get number of rows and columns from top of file
     char x;
-    infile >> maze.nRows >> x >> maze.nCols;
+    infile >> maze.nLines >> x >> maze.nCols;
 
     // Load maze
-    for (size_t i = 0; i < maze.nRows; i++)
+    for (size_t i = 0; i < maze.nLines; i++)
     {
         // Ignore \n
         infile.ignore();
@@ -265,117 +283,100 @@ bool mazeMenu(GameState &gameState, Maze &maze)
     return true;
 }
 
+bool doPlayerMove(Maze &maze, string &errorMessage, int columnDelta, int lineDelta)
+{
+    int newCol = maze.player.column + columnDelta;
+    int newLine = maze.player.line + lineDelta;
+
+    if (newCol < 0 || newCol >= maze.nCols || newLine < 0 || newLine >= maze.nLines)
+    {
+        errorMessage = OUT_OF_BOUNDS;
+        return false;
+    }
+    else if (maze.visualMap.at(maze.index(newCol, newLine)) == 'r')
+    {
+        errorMessage = CELL_OCCUPIED;
+        return false;
+    }
+
+    maze.player.column = newCol;
+    maze.player.line = newLine;
+    return true;
+}
+
 /**
  * Receives the input from the player and moves them accordingly.
  * Ends the game if the user pressed crt-Z by returning false
  * @param player The player
  */
-bool movePlayer(Entity &player)
+bool movePlayer(Maze &maze, bool &validInput, string &errorMessage)
 {
-    char move;
-    cout << "insert movement: ";
-    cin >> move;
-    if (cin.fail())
+    string input;
+
+    cout << "Insert movement: ";
+
+    if (!getInput(input))
+        return false;
+
+    if (input.length() != 1)
     {
-        if (cin.eof())
-            return false;
-        else
-        {
-            cout << "\nInvalid input!\n\n";
-            cin.clear();
-            cin.ignore(10000, '\n');
-        }
+        validInput = false;
+        errorMessage = GENERIC_ERROR;
+        return true;
     }
 
-    if (move == 'Q' || move == 'q')
-    {
-        player.line -= 1;
-        player.column -= 1;
-    }
-    else if (move == 'W' || move == 'w')
-        player.line -= 1;
-    else if (move == 'E' || move == 'e')
-    {
-        player.line -= 1;
-        player.column += 1;
-    }
-    else if (move == 'A' || move == 'a')
-        player.column -= 1;
-    else if (move == 'S' || move == 's')
-        ;
-    else if (move == 'D' || move == 'd')
-        player.column += 1;
-    else if (move == 'Z' || move == 'z')
-    {
-        player.line += 1;
-        player.column -= 1;
-    }
-    else if (move == 'X' || move == 'x')
-        player.line += 1;
-    else if (move == 'C' || move == 'c')
-    {
-        player.line += 1;
-        player.column += 1;
-    }
-    else
-        cout << "\nInvalid input!\n\n";
-    return true;
-}
+    char move = tolower(input.at(0));
 
-/**
- * checks if the player position is the same as the Robots (if they collied)
- *
- * @param player The player
- * @param robots vector with the positions of the robots
- * @param positionBefore position of the player before the movement
- */
-void checkPlayerandRobot(Entity &player, vector<Entity> &robots, Entity positionBefore)
-{
-    for (int i = 0; i < robots.size(); i++)
+    switch (move)
     {
-        if (robots[i].line == player.line && robots[i].column == player.column && robots[i].alive)
-            player.alive = false;
-        else if (robots[i].line == player.line && robots[i].column == player.column && !robots[i].alive)
-        {
-            cout << "Cell ocupied by a dead robot, please try again.\n";
-            player = positionBefore;
-        }
+    case 'q':
+        validInput = doPlayerMove(maze, errorMessage, -1, -1);
+        return true;
+    case 'w':
+        validInput = doPlayerMove(maze, errorMessage, 0, -1);
+        return true;
+    case 'e':
+        validInput = doPlayerMove(maze, errorMessage, 1, -1);
+        return true;
+    case 'a':
+        validInput = doPlayerMove(maze, errorMessage, -1, 0);
+        return true;
+    case 's':
+        validInput = doPlayerMove(maze, errorMessage, 0, 0);
+        return true;
+    case 'd':
+        validInput = doPlayerMove(maze, errorMessage, 1, 0);
+        return true;
+    case 'z':
+        validInput = doPlayerMove(maze, errorMessage, -1, 1);
+        return true;
+    case 'x':
+        validInput = doPlayerMove(maze, errorMessage, 0, 1);
+        return true;
+    case 'c':
+        validInput = doPlayerMove(maze, errorMessage, 1, 1);
+        return true;
+    default:
+        validInput = false;
+        errorMessage = GENERIC_ERROR;
+        return true;
     }
 }
 
-/**
- * checks if two robots collied
- *
- * @param vector with the positions of the robots
- */
-void checkRobotandRobot(vector<Entity> &robots)
+bool entityEntityCollision(const Entity &e1, const Entity &e2)
 {
-    for (int i = 0; i < robots.size(); i++)
-    {
-        for (int j = i + 1; j < robots.size() - 1; j++)
-        {
-            if (robots[i].line == robots[j].line && robots[i].column == robots[j].line)
-            {
-                robots[i].alive = false;
-                robots[j].alive = false;
-            }
-        }
-    }
+    return e1.line == e2.line && e1.column == e2.column;
 }
 
 /**
  * checks if a player or a robots collides with the fence
  *
- * @param1  the positions of the being
- * @param2  the maze
+ * @param entity The entity
+ * @param maze The maze
  */
-void checkBeingandFence(Entity &being, Maze maze)
+bool entityFenceCollision(const Entity &entity, const Maze &maze)
 {
-    size_t i = being.line * maze.nCols + being.column;
-    if (maze.fenceMap[i] == '*')
-    {
-        being.alive = false;
-    }
+    return maze.fenceMap.at(maze.index(entity.column, entity.line)) == '*';
 }
 
 /**
@@ -384,68 +385,50 @@ void checkBeingandFence(Entity &being, Maze maze)
  * @param1  vector with the positions of the robots
  * @param2  position of the player
  */
-void moveRobot(vector<Entity> &robots, Entity player)
+void moveRobots(Maze &maze)
 {
-    for (Entity &robot : robots)
+    for (Entity &robot : maze.robots)
     {
         if (!robot.alive)
             continue;
 
-        //if the robot and the player are in the same line
-        if (robot.line == player.line)
+        robot.line += sign(maze.player.line - robot.line);
+        robot.column += sign(maze.player.column - robot.column);
+
+        robot.alive = !entityFenceCollision(robot, maze);
+
+        for (Entity &other : maze.robots)
         {
-            if (robot.column < player.column)
-                robot.line += 1;
-            else if (robot.column > player.column)
-                robot.line -= 1;
+            if (&robot == &other)
+                continue;
+
+            if (entityEntityCollision(robot, other))
+            {
+                robot.alive = false;
+                other.alive = false;
+            }
         }
-        //if the robot and the player are in the same col
-        if (robot.column == player.column)
+
+        if (entityEntityCollision(robot, maze.player))
         {
-            if (robot.line < player.line)
-                robot.column += 1;
-            else if (robot.line > player.line)
-                robot.column -= 1;
-        }
-        //if the player is at northwest of the robot
-        if (robot.column > player.column && robot.line > player.line)
-        {
-            robot.column -= 1;
-            robot.line -= 1;
-        }
-        //if the player is at south-west of the robot
-        if (robot.column > player.column && robot.line < player.line)
-        {
-            robot.column -= 1;
-            robot.line += 1;
-        }
-        //if the player is at the southeast of the robot
-        if (robot.column < player.column && robot.line < player.line)
-        {
-            robot.column += 1;
-            robot.line += 1;
-        }
-        //if the player is at north east of the robot
-        if (robot.column < player.column && robot.line > player.line)
-        {
-            robot.column += 1;
-            robot.line -= 1;
+            maze.player.alive = false;
         }
     }
 }
 
-void robotsDead(vector<Entity> &robots, GameState &gameState)
+bool isGameOver(const Maze &maze)
 {
     bool allDead = true;
-    for (Entity &robot : robots)
+    for (const Entity &robot : maze.robots)
     {
         if (robot.alive)
+        {
             allDead = false;
+            break;
+        }
     }
-    if (allDead)
-    {
-        gameState = GameState::finished;
-    }
+
+    return allDead || !maze.player.alive;
 }
 
 /**
@@ -479,6 +462,39 @@ void displayMaze(const Maze &maze)
 
         cout << maze.visualMap.at(i);
     }
+    cout << '\n';
+}
+
+bool inGame(GameState &gameState, Maze &maze, bool &validInput, string &errorMessage)
+{
+    // Show maze
+    if (validInput)
+    {
+        updateVisualMap(maze);
+        displayMaze(maze);
+    }
+
+    // Check if game is over
+    if (isGameOver(maze))
+    {
+        gameState = GameState::finished;
+        return true;
+    }
+
+    if (!movePlayer(maze, validInput, errorMessage))
+        return false;
+    if (!validInput)
+        return true;
+
+    if (entityFenceCollision(maze.player, maze) || maze.visualMap.at(maze.index(maze.player.column, maze.player.line)) == 'R')
+    {
+        maze.player.alive = false;
+        return true;
+    }
+
+    moveRobots(maze);
+
+    return true;
 }
 
 void readLeaderboard(const string &mazeNumber, Leaderboard &leaderboard)
@@ -519,6 +535,16 @@ void readLeaderboard(const string &mazeNumber, Leaderboard &leaderboard)
     file.close();
 }
 
+void printLeaderboard(ostream &out, const Leaderboard &leaderboard)
+{
+    out << "Player          - Time\n----------------------\n";
+
+    for (auto p : leaderboard)
+    {
+        out << setw(16) << left << p.first << '-' << setw(5) << right << p.second << '\n';
+    }
+}
+
 void saveLeaderboard(const string &mazeNumber, const Leaderboard &leaderboard)
 {
     string fileName = "MAZE_"s + mazeNumber + "_WINNERS.txt"s;
@@ -527,18 +553,65 @@ void saveLeaderboard(const string &mazeNumber, const Leaderboard &leaderboard)
     file.open(fileName);
 
     // Add header
-    file << "Player          - Time\n----------------------\n";
+    printLeaderboard(file, leaderboard);
+}
 
-    for (auto p : leaderboard)
+bool finished(GameState &gameState, const Maze &maze, bool &validInput, string &errorMessage)
+{
+    if (maze.player.alive)
     {
-        file << setw(16) << left << p.first << '-' << setw(5) << right << p.second << '\n';
+        if (validInput)
+            cout << "You win!\n";
+
+        cout << "Please insert your name: ";
+
+        string name;
+        if (!getInput(name))
+            return false;
+
+        if (name.length() > 15)
+        {
+            validInput = false;
+            errorMessage = INVALID_NAME;
+            return true;
+        }
+        else if (name.length() == 0)
+        {
+            validInput = false;
+            errorMessage = GENERIC_ERROR;
+            return true;
+        }
+
+        validInput = true;
+
+        Leaderboard leaderboard;
+        readLeaderboard(maze.mazeNumber, leaderboard);
+        leaderboard[name] = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count();
+
+        cout << '\n';
+        printLeaderboard(cout, leaderboard);
+        cout << '\n';
+
+        saveLeaderboard(maze.mazeNumber, leaderboard);
     }
+    else
+        cout << "You lose :(\n";
+
+    cout << "Press enter to continue\n";
+    gameState = GameState::mainMenu;
+
+    string i;
+    return getInput(i);
 }
 
 int main()
 {
     /** Whether the program is running */
     bool running = true;
+    /** Whether the last input was valid */
+    bool validInput = true;
+    /** The message to show if the input was invalid */
+    string errorMessage;
     /** The game state */
     GameState gameState = GameState::mainMenu;
     /** Information about the maze */
@@ -546,58 +619,22 @@ int main()
 
     while (running)
     {
-        Entity before = maze.player;
+        if (!validInput)
+            cout << errorMessage << "\n\n";
 
         switch (gameState)
         {
         case GameState::mainMenu:
-            running = mainMenu(gameState);
+            running = mainMenu(gameState, validInput, errorMessage);
             break;
         case GameState::mazeMenu:
-            running = mazeMenu(gameState, maze);
+            running = mazeMenu(gameState, maze, validInput, errorMessage);
             break;
         case GameState::inGame:
-            updateVisualMap(maze);
-            displayMaze(maze);
-            cout << '\n';
-
-            robotsDead(maze.robots, gameState);
-            if (!maze.player.alive)
-            {
-                gameState = GameState::finished;
-            }
-
-            if (gameState == GameState::finished)
-                continue;
-
-            if (!movePlayer(maze.player))
-                running = false;
-
-            checkBeingandFence(maze.player, maze);
-
-            moveRobot(maze.robots, maze.player);
-            checkPlayerandRobot(maze.player, maze.robots, before);
-
-            for (Entity &r : maze.robots)
-                checkBeingandFence(r, maze);
+            running = inGame(gameState, maze, validInput, errorMessage);
             break;
         case GameState::finished:
-            if (maze.player.alive)
-            {
-                cout << "\n_____________________\nCONGRATS YOU WONNN :)\n\n";
-                Leaderboard leaderboard;
-                string name;
-                readLeaderboard(maze.mazeNumber, leaderboard);
-                cout << "Please insert the winning name: ";
-                cin.ignore();
-                getline(cin, name);
-                int time = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count();
-                leaderboard[name] = time;
-                saveLeaderboard(maze.mazeNumber, leaderboard);
-            }
-            else
-                cout << "\n____________\nGAME OVER :( \n\n";
-            gameState = GameState::mainMenu;
+            running = finished(gameState, maze, validInput, errorMessage);
             break;
         }
     }
