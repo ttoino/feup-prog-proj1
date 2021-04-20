@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <fstream>
 #include <chrono>
-#include <unordered_map>
+#include <algorithm>
 
 using namespace std;
 
@@ -14,8 +14,8 @@ const string OUT_OF_BOUNDS = "Cannot move out of bounds!"s;
 const string INVALID_MAZE_NUMBER = "Must be a number from 1 to 99!"s;
 const string MAZE_NOT_FOUND = "That maze could not be found!"s;
 const string INVALID_NAME = "Must have 15 characters or fewer!"s;
+const string ANOTHER_NAME = "";
 
-using Leaderboard = unordered_map<string, unsigned int>;
 
 /**
  * This struct represents a robot or the player
@@ -66,6 +66,15 @@ struct Maze
     {
         return line * nCols + column;
     }
+};
+
+/**
+ * This struct holds all the information nabout the leaderboard
+ */
+struct LeaderBoard
+{
+    string name;
+    unsigned points;
 };
 
 /**
@@ -497,7 +506,7 @@ bool inGame(GameState &gameState, Maze &maze, bool &validInput, string &errorMes
     return true;
 }
 
-void readLeaderboard(const string &mazeNumber, Leaderboard &leaderboard)
+void readLeaderboard(const string &mazeNumber, vector<LeaderBoard> &leaderBoard)
 {
     string fileName = "MAZE_"s + mazeNumber + "_WINNERS.txt"s;
 
@@ -512,40 +521,44 @@ void readLeaderboard(const string &mazeNumber, Leaderboard &leaderboard)
     file.ignore(100, '\n');
     file.ignore(100, '\n');
 
-    while (!file.eof())
+    do 
     {
-        string name;
+        LeaderBoard person;
         char c;
         do
         {
             c = file.get();
-            name += c;
-        } while (!(c == ' ' && file.peek() == ' ') && name.length() < 15);
-        name.pop_back();
+            person.name += c;
+        } while (!(c == ' ' && file.peek() == ' ') && person.name.length() < 15);
+        person.name.pop_back();
 
         // Ignore dash
-        file >> c;
-
-        file >> leaderboard[name];
+        file >> c >> person.points;
+        leaderBoard.push_back(person);
 
         // Ignore \n
         file.ignore();
-    }
+    } while (!file.eof());
 
     file.close();
 }
 
-void printLeaderboard(ostream &out, const Leaderboard &leaderboard)
+bool compareLeaderboard(LeaderBoard person1, LeaderBoard person2)
+{
+    return (person1.points < person2.points);
+}
+
+void printLeaderboard(ostream &out, vector<LeaderBoard> leaderBoard)
 {
     out << "Player          - Time\n----------------------\n";
-
-    for (auto p : leaderboard)
+    sort(leaderBoard.begin(), leaderBoard.end(), compareLeaderboard);
+    for (auto person : leaderBoard)
     {
-        out << setw(16) << left << p.first << '-' << setw(5) << right << p.second << '\n';
+        out << setw(16) << left << person.name << '-' << setw(5) << right << person.points << '\n';
     }
 }
 
-void saveLeaderboard(const string &mazeNumber, const Leaderboard &leaderboard)
+void saveLeaderboard(const string &mazeNumber, vector<LeaderBoard> leaderBoard)
 {
     string fileName = "MAZE_"s + mazeNumber + "_WINNERS.txt"s;
 
@@ -553,8 +566,31 @@ void saveLeaderboard(const string &mazeNumber, const Leaderboard &leaderboard)
     file.open(fileName);
 
     // Add header
-    printLeaderboard(file, leaderboard);
+    printLeaderboard(file, leaderBoard);
 }
+
+bool  searchName(vector<LeaderBoard>& leaderBoard, LeaderBoard person)
+{
+    bool foundName = false;
+    for (auto& gamer : leaderBoard)
+    {
+        if (gamer.name == person.name)
+        {
+            foundName = true;
+            string decision;
+            cout << "The name already exits in the leader board do you wish to continue with it? (y/n)";
+            getInput(decision);
+            if (decision=="y"|| decision=="Y") gamer.points = person.points;
+            else
+            {
+                return true;
+            }
+        }
+    }
+    if (!foundName) leaderBoard.push_back(person);
+    return false;
+}
+
 
 bool finished(GameState &gameState, const Maze &maze, bool &validInput, string &errorMessage)
 {
@@ -582,17 +618,27 @@ bool finished(GameState &gameState, const Maze &maze, bool &validInput, string &
             return true;
         }
 
+ 
         validInput = true;
 
-        Leaderboard leaderboard;
-        readLeaderboard(maze.mazeNumber, leaderboard);
-        leaderboard[name] = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count();
+        LeaderBoard person;
+        vector<LeaderBoard> leaderBoard;
+        readLeaderboard(maze.mazeNumber, leaderBoard);
+        person.name = name;
+        person.points = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count();
+        
+        if (searchName(leaderBoard, person))
+        {
+            validInput = false;
+            errorMessage = ANOTHER_NAME;
+            return true;
+        }
 
         cout << '\n';
-        printLeaderboard(cout, leaderboard);
+        printLeaderboard(cout, leaderBoard);
         cout << '\n';
 
-        saveLeaderboard(maze.mazeNumber, leaderboard);
+        saveLeaderboard(maze.mazeNumber, leaderBoard);
     }
     else
         cout << "You lose :(\n";
