@@ -3,6 +3,7 @@
 #include <string>
 #include <iomanip>
 #include <fstream>
+#include <sstream>
 #include <chrono>
 #include <algorithm>
 
@@ -16,6 +17,21 @@ const string MAZE_NOT_FOUND = "That maze could not be found!"s;
 const string INVALID_NAME = "Must have 15 characters or fewer!"s;
 const string ANOTHER_NAME = "";
 
+/**
+ * This struct represents an entry on the leaderboard.
+ */
+struct LeaderboardEntry
+{
+    /** The player's name */
+    string name;
+    /** The player's points */
+    unsigned int points;
+};
+
+/**
+ * This type represents the leaderboard.
+ */
+using Leaderboard = vector<LeaderboardEntry>;
 
 /**
  * This struct represents a robot or the player
@@ -62,19 +78,18 @@ struct Maze
     /** The player */
     Entity player = Entity(0, 0);
 
+    /**
+     * Converts a column and a line into an index usable with this struct's maps.
+     * 
+     * @param column The column
+     * @param line The line
+     * 
+     * @returns The index
+     */
     size_t index(const size_t column, const size_t line) const
     {
         return line * nCols + column;
     }
-};
-
-/**
- * This struct holds all the information nabout the leaderboard
- */
-struct LeaderBoard
-{
-    string name;
-    unsigned points;
 };
 
 /**
@@ -92,6 +107,32 @@ enum class GameState
     finished
 };
 
+void normalizeInput(string &input)
+{
+    char last = 0;
+    size_t i = 0;
+    while (i < input.length())
+    {
+        char &c = input.at(i);
+
+        if (c == '\t')
+            c = ' ';
+
+        if (c == ' ' && (last == ' ' || last == 0 || i == input.length() - 1 || i == 0))
+        {
+            input.erase(i, 1);
+
+            if (i == input.length())
+                i--;
+        }
+        else
+        {
+            i++;
+            last = c;
+        }
+    }
+}
+
 /**
  * Gets a line from stdin and returns false if the eof bit is set
  * 
@@ -101,6 +142,7 @@ enum class GameState
 bool getInput(string &input)
 {
     getline(cin, input);
+    normalizeInput(input);
 
     if (cin.eof())
         return false;
@@ -108,6 +150,45 @@ bool getInput(string &input)
     return true;
 }
 
+/**
+ * Checks if a char represents the first byte in a UTF8 encoded character. 
+ * (More specifically, checks if it does not represent any byte that is not the first, 
+ * as those always follow the same pattern.)
+ * 
+ * @param c The byte to check
+ * 
+ * @returns Whether it is the first byte
+ */
+bool isUtf8Byte1(const char c)
+{
+    // In a UTF8 encoded character, any byte after the first follows the pattern 0b10xxxxxx
+    return ((c & 0b11000000) != 0b10000000);
+}
+
+/**
+ * Counts the number of UTF8 encoded characters in a string. 
+ * (More specifically, counts the number of bytes that represent the first byte of a UTF8 encoded character.)
+ * 
+ * @param str The string to get the length of
+ * 
+ * @returns The length of the string
+ */
+size_t utf8Length(const string &str)
+{
+    size_t length = 0;
+
+    for (char c : str)
+        length += isUtf8Byte1(c);
+
+    return length;
+}
+
+/**
+ * Returns the sign of a number
+ * 
+ * @param x The number to check
+ * @returns 1 if x is positive, -1 if x is negative, 0 if x is 0
+ */
 int sign(int x)
 {
     return (x > 0) - (x < 0);
@@ -116,27 +197,24 @@ int sign(int x)
 /**
  * Prints the game's rules
  */
-void printRules()
+bool printRules()
 {
-    cout << "\nSymbols meaning: \n"
-            "   ->* = electrical fence or post\n"
-            "   ->H = player (alive); h = player (dead); the player dies when he/she collides with a fence or a post, or is captured by a robot;\n"
-            "   ->R = robot (alive); r = robot (destroyed = dead / stuck); a dead robot is one that collided with a fence or a post;\n"
-            "a stuck robot is one that collided with another robot(alive or destroyed)\n\n"
+    cout << "This game takes place in a maze made up of robots and electrical fences/posts.\n"
+            "A fence/post is represented by an '*', a robot by an 'R' if alive, and an 'r' if dead, and you are represented by an 'H' if alive, and an 'h' if dead.\n"
+            "When you touch a fence/post or a robot you die. The same rules apply to robots.\n"
+            "The objective of the game is to survive until all robots die.\n"
+            "You can move to any of the 8 cells adjacent to your position using the following keys:\n"
+            "\tQ W E\n"
+            "\tA S D\n"
+            "\tZ X C\n"
+            "(Where 'S' keeps you in your current position)\n"
+            "After you move all alive robots will move towards you without avoiding obstacles.\n"
+            "You may leave the game at any time by typing Ctrl-Z on Windows or Ctrl-D on Linux.\n\n"
 
-            "How to play: \n"
-            "   ->The player can only move to one of the 8 neighbour cells of his/her current cell. The movement is indicated by \n"
-            "typing one of the letters indicated below (the position of each letter relatively to the player's position \n"
-            "indicates the movement that the player wants to do):\n"
-         << setw(8) << 'Q' << setw(10) << 'W' << setw(13) << 'E' << '\n'
-         << setw(8) << 'A' << setw(20) << "player's position" << setw(3) << 'D' << '\n'
-         << setw(8) << 'Z' << setw(10) << 'X' << setw(13) << 'C' << '\n'
-         << "   ->The player has the option to stay in his/her current position by typing 'S'.\n"
-            "   ->The above mentioned letters may be typed in uppercase or lowercase. If the user inputs an invalid letter/symbol, \n"
-            "the input must be repeated.\n"
-            "   ->The player should not be allowed to move to cells occupied by destroyed robots; if he/she tries to do so, he/she \n"
-            "must be informed that the movement is invalid and asked for a new movement.\n"
-            "   ->The player can exit the game at any moment by typing CTRL-Z, in Windows, or CTRL-D, in Linux.\n\n";
+            "Press enter to continue\n";
+
+    string s;
+    return getInput(s);
 }
 
 /**
@@ -162,10 +240,13 @@ bool mainMenu(GameState &gameState, bool &validInput, string &errorMessage)
     if (!getInput(input))
         return false; // EOF, exit game
 
+    // New line for spacing
+    cout << "\n";
+
     validInput = true;
 
     if (input == "1")
-        printRules(); // Show the rules
+        return printRules(); // Show the rules
 
     else if (input == "2")
         gameState = GameState::mazeMenu; // Pick the maze
@@ -292,6 +373,17 @@ bool mazeMenu(GameState &gameState, Maze &maze, bool &validInput, string &errorM
     return true;
 }
 
+/**
+ * Does a player move if it is valid.
+ * If it's not, returns a useful error message.
+ * 
+ * @param maze The maze
+ * @param errorMessage The error message returned if the movement is invalid
+ * @param columnDelta How many cells to move in the x axis
+ * @param lineDelta How many cells to move in the y axis
+ * 
+ * @returns false if the movement is invalid
+ */
 bool doPlayerMove(Maze &maze, string &errorMessage, int columnDelta, int lineDelta)
 {
     int newCol = maze.player.column + columnDelta;
@@ -314,9 +406,14 @@ bool doPlayerMove(Maze &maze, string &errorMessage, int columnDelta, int lineDel
 }
 
 /**
- * Receives the input from the player and moves them accordingly.
- * Ends the game if the user pressed crt-Z by returning false
- * @param player The player
+ * Asks the user for movement and does it if it's valid.
+ * If it's invalid shows a helpful error message.
+ * 
+ * @param maze The maze
+ * @param validInput Whether the input was valid
+ * @param errorMessage The error message returned if the input is invalid
+ * 
+ * @returns false if the user wants to exit the game
  */
 bool movePlayer(Maze &maze, bool &validInput, string &errorMessage)
 {
@@ -372,16 +469,26 @@ bool movePlayer(Maze &maze, bool &validInput, string &errorMessage)
     }
 }
 
+/**
+ * Checks if two entities occupy the same cell.
+ * 
+ * @param e1 The first entity
+ * @param e2 The second entity
+ * 
+ * @returns true if the entities collided
+ */
 bool entityEntityCollision(const Entity &e1, const Entity &e2)
 {
     return e1.line == e2.line && e1.column == e2.column;
 }
 
 /**
- * checks if a player or a robots collides with the fence
- *
+ * Checks if an entity occupies the same cell as a fence.
+ * 
  * @param entity The entity
- * @param maze The maze
+ * @param maze The second entity
+ * 
+ * @returns true if the entities collided
  */
 bool entityFenceCollision(const Entity &entity, const Maze &maze)
 {
@@ -389,10 +496,10 @@ bool entityFenceCollision(const Entity &entity, const Maze &maze)
 }
 
 /**
- * moves the robots in the direction of the player
- *
- * @param1  vector with the positions of the robots
- * @param2  position of the player
+ * Moves the robots that are alive in sequential order.
+ * Also checks for collisions between robots, robots and fences, and robots and the player.
+ * 
+ * @param maze The maze
  */
 void moveRobots(Maze &maze)
 {
@@ -425,6 +532,13 @@ void moveRobots(Maze &maze)
     }
 }
 
+/**
+ * Checks if the game has ended, either because all robots are dead or because the player is dead.
+ * 
+ * @param maze The maze
+ * 
+ * @returns true if the game is over
+ */
 bool isGameOver(const Maze &maze)
 {
     bool allDead = true;
@@ -474,6 +588,20 @@ void displayMaze(const Maze &maze)
     cout << '\n';
 }
 
+/**
+ * Handles in game logic:
+ * - Shows the maze
+ * - Asks the player for input and moves him
+ * - Moves the robots
+ * - Handles collisions
+ * 
+ * @param gameState The state the game is in
+ * @param maze The maze
+ * @param validInput Whether the last input was valid
+ * @param errorMessage The error message returned if the input was invalid
+ * 
+ * @returns false if the user wants to exit the game
+ */
 bool inGame(GameState &gameState, Maze &maze, bool &validInput, string &errorMessage)
 {
     // Show maze
@@ -506,7 +634,13 @@ bool inGame(GameState &gameState, Maze &maze, bool &validInput, string &errorMes
     return true;
 }
 
-void readLeaderboard(const string &mazeNumber, vector<LeaderBoard> &leaderBoard)
+/**
+ * Reads a leaderboard file.
+ * 
+ * @param mazeNumber Which maze to read (in the range "01" to "99")
+ * @param leaderboard Variable where the leaderboard is stored
+ */
+void readLeaderboard(const string &mazeNumber, Leaderboard &leaderboard)
 {
     string fileName = "MAZE_"s + mazeNumber + "_WINNERS.txt"s;
 
@@ -521,77 +655,112 @@ void readLeaderboard(const string &mazeNumber, vector<LeaderBoard> &leaderBoard)
     file.ignore(100, '\n');
     file.ignore(100, '\n');
 
-    do 
+    string line;
+    while (getline(file, line))
     {
-        LeaderBoard person;
+        stringstream linestream(line);
+        LeaderboardEntry person;
+        size_t nameLength = 0;
         char c;
-        do
+
+        while (nameLength < 15)
         {
-            c = file.get();
+            c = linestream.get();
+            nameLength += isUtf8Byte1(c);
             person.name += c;
-        } while (!(c == ' ' && file.peek() == ' ') && person.name.length() < 15);
-        person.name.pop_back();
+        }
 
         // Ignore dash
-        file >> c >> person.points;
-        leaderBoard.push_back(person);
-
-        // Ignore \n
-        file.ignore();
-    } while (!file.eof());
+        linestream >> c >> person.points;
+        leaderboard.push_back(person);
+    }
 
     file.close();
 }
 
-bool compareLeaderboard(LeaderBoard person1, LeaderBoard person2)
+bool compareLeaderboardPoints(LeaderboardEntry person1, LeaderboardEntry person2)
 {
     return (person1.points < person2.points);
 }
 
-void printLeaderboard(ostream &out, vector<LeaderBoard> leaderBoard)
+void sortLeaderboard(Leaderboard &leaderboard)
+{
+    sort(leaderboard.begin(), leaderboard.end(), compareLeaderboardPoints);
+}
+
+/**
+ * Prints a formated leaderboard onto an output stream.
+ * 
+ * @param out Where to print the leaderboard
+ * @param leaderboard The leaderboard
+ */
+void printLeaderboard(ostream &out, Leaderboard &leaderboard)
 {
     out << "Player          - Time\n----------------------\n";
-    sort(leaderBoard.begin(), leaderBoard.end(), compareLeaderboard);
-    for (auto person : leaderBoard)
+
+    for (auto person : leaderboard)
     {
-        out << setw(16) << left << person.name << '-' << setw(5) << right << person.points << '\n';
+        out << person.name << " - " << setw(4) << right << person.points << '\n';
     }
 }
 
-void saveLeaderboard(const string &mazeNumber, vector<LeaderBoard> leaderBoard)
+/**
+ * Saves a formated leaderboard onto a file.
+ * 
+ * @param mazeNumber Which maze file to save to (in the range "01" to "99")
+ * @param leaderboard The leaderboard
+ */
+void saveLeaderboard(const string &mazeNumber, Leaderboard &leaderboard)
 {
     string fileName = "MAZE_"s + mazeNumber + "_WINNERS.txt"s;
 
     ofstream file;
     file.open(fileName);
 
-    // Add header
-    printLeaderboard(file, leaderBoard);
+    printLeaderboard(file, leaderboard);
 }
 
-bool  searchName(vector<LeaderBoard>& leaderBoard, LeaderBoard person)
+bool searchName(Leaderboard &leaderboard, LeaderboardEntry &person)
 {
-    bool foundName = false;
-    for (auto& gamer : leaderBoard)
+    for (auto &other : leaderboard)
     {
-        if (gamer.name == person.name)
+        if (other.name == person.name)
         {
-            foundName = true;
+            cout << "That name already exits in the leaderboard! Do you wish to continue with it? (y/N) ";
+
             string decision;
-            cout << "The name already exits in the leader board do you wish to continue with it? (y/n)";
+
             getInput(decision);
-            if (decision=="y"|| decision=="Y") gamer.points = person.points;
+
+            if (decision == "y" || decision == "Y")
+            {
+                // Only save new score if it's better than the current one
+                if (person.points < other.points)
+                    other.points = person.points;
+                return false;
+            }
             else
             {
                 return true;
             }
         }
     }
-    if (!foundName) leaderBoard.push_back(person);
+
+    leaderboard.push_back(person);
     return false;
 }
 
-
+/**
+ * Shows the game result.
+ * If the player won asks for his name and saves it on the leaderboard.
+ * 
+ * @param gameState The state the game is in
+ * @param maze The maze
+ * @param validInput Whether the last input was valid
+ * @param errorMessage The error message returned if the input was invalid
+ * 
+ * @returns false if the user wants to exit the game
+ */
 bool finished(GameState &gameState, const Maze &maze, bool &validInput, string &errorMessage)
 {
     if (maze.player.alive)
@@ -601,44 +770,49 @@ bool finished(GameState &gameState, const Maze &maze, bool &validInput, string &
 
         cout << "Please insert your name: ";
 
-        string name;
-        if (!getInput(name))
+        LeaderboardEntry person;
+        Leaderboard leaderboard;
+
+        // Save points as soon as possible
+        person.points = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count();
+
+        if (!getInput(person.name))
             return false;
 
-        if (name.length() > 15)
+        // Check name length
+        size_t nameLength = utf8Length(person.name);
+        if (nameLength > 15)
         {
             validInput = false;
             errorMessage = INVALID_NAME;
             return true;
         }
-        else if (name.length() == 0)
+        else if (nameLength == 0)
         {
             validInput = false;
             errorMessage = GENERIC_ERROR;
             return true;
         }
-
- 
         validInput = true;
+        // Name is valid, pad it out to a length of 15
+        person.name += string(15 - nameLength, ' ');
 
-        LeaderBoard person;
-        vector<LeaderBoard> leaderBoard;
-        readLeaderboard(maze.mazeNumber, leaderBoard);
-        person.name = name;
-        person.points = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - maze.startTime).count();
-        
-        if (searchName(leaderBoard, person))
+        readLeaderboard(maze.mazeNumber, leaderboard);
+
+        if (searchName(leaderboard, person))
         {
             validInput = false;
             errorMessage = ANOTHER_NAME;
             return true;
         }
 
+        sortLeaderboard(leaderboard);
+
         cout << '\n';
-        printLeaderboard(cout, leaderBoard);
+        printLeaderboard(cout, leaderboard);
         cout << '\n';
 
-        saveLeaderboard(maze.mazeNumber, leaderBoard);
+        saveLeaderboard(maze.mazeNumber, leaderboard);
     }
     else
         cout << "You lose :(\n";
