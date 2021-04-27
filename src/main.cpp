@@ -1,3 +1,5 @@
+// T01_G07
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -41,7 +43,7 @@ struct LeaderboardEntry
 using Leaderboard = vector<LeaderboardEntry>;
 
 /**
- * This struct represents a robot or the player
+ * This struct represents a robot or the player.
  */
 struct Entity
 {
@@ -63,7 +65,7 @@ struct Entity
 };
 
 /**
- * This struct holds all the information needed for a game to be played
+ * This struct holds all the information needed for a game to be played.
  */
 struct Maze
 {
@@ -100,7 +102,7 @@ struct Maze
 };
 
 /**
- * This enum represents state the game is in
+ * This enum represents state the game is in.
  */
 enum class GameState
 {
@@ -128,13 +130,16 @@ void normalizeInput(string &input)
     {
         char &c = input.at(i);
 
+        // Replace tabs with spaces
         if (c == '\t')
             c = ' ';
 
+        // Delete character if it is a space at the begining, at the end or after another space
         if (c == ' ' && (last == ' ' || last == 0 || i == input.length() - 1 || i == 0))
         {
             input.erase(i, 1);
 
+            // If we're outside the string, go back one
             if (i == input.length())
                 i--;
         }
@@ -147,7 +152,7 @@ void normalizeInput(string &input)
 }
 
 /**
- * Gets a line from stdin and returns false if the eof bit is set
+ * Gets a line from stdin, normalizes it, and returns false if the eof bit is set.
  * 
  * @param input Where to store the input
  * @returns false if the eof bit is set, true otherwise
@@ -197,7 +202,7 @@ size_t utf8Length(const string &str)
 }
 
 /**
- * Returns the sign of a number
+ * Returns the sign of a number.
  * 
  * @param x The number to check
  * @returns 1 if x is positive, -1 if x is negative, 0 if x is 0
@@ -208,7 +213,9 @@ int sign(int x)
 }
 
 /**
- * Prints the game's rules
+ * Prints the game's rules.
+ * 
+ * @returns false if the user wants to exit the game
  */
 bool printRules()
 {
@@ -231,7 +238,7 @@ bool printRules()
 }
 
 /**
- * The start of the game. Asks the user what he wants to do
+ * The start of the game. Asks the user what he wants to do.
  * 
  * @param gameState The game state
  * @returns false if the user wants to exit the game
@@ -293,7 +300,94 @@ bool validMazeNumber(const string &number)
 }
 
 /**
- * Receives input from the player and loads the respective maze
+ * Loads a maze from the respective file. 
+ * Tries to handle invalid files.
+ * 
+ * @param maze The maze
+ * @param validInput Whether the last input was valid. Set to false if file is invalid
+ * @param errorMessage The reason why the file is invalid
+ * 
+ * @returns false if the maze was not loaded
+ */
+bool loadMaze(Maze &maze, bool &validInput, string &errorMessage)
+{
+    // Open file
+    ifstream file("MAZE_"s + maze.mazeNumber + ".txt"s);
+
+    // File doesn't exist
+    if (!file.is_open())
+    {
+        validInput = false;
+        errorMessage = MAZE_NOT_FOUND;
+        return false;
+    }
+
+    // Get number of rows and columns from top of file
+    char x;
+    file >> maze.nLines >> x >> maze.nCols;
+
+    if (x != 'x' || file.fail())
+    {
+        validInput = false;
+        errorMessage = INVALID_MAZE_HEADER_SIZE;
+        return false;
+    }
+
+    char c;
+    maze.player.alive = false;
+    size_t i = 0;
+    while (file.get(c))
+    {
+        switch (c)
+        {
+        case '\n':
+            // Ignore newlines
+            continue;
+        case 'R':
+            maze.robots.push_back(Entity(i % maze.nCols, i / maze.nCols));
+            maze.fenceMap.push_back(' ');
+            break;
+        case 'H':
+            if (maze.player.alive)
+            {
+                // Found two players
+                validInput = false;
+                errorMessage = MULTIPLE_PLAYERS;
+                return false;
+            }
+            maze.player = Entity(i % maze.nCols, i / maze.nCols);
+            maze.fenceMap.push_back(' ');
+            break;
+        case ' ':
+            maze.fenceMap.push_back(' ');
+            break;
+        case '*':
+            maze.fenceMap.push_back('*');
+            break;
+        default:
+            // Found an invalid character
+            validInput = false;
+            errorMessage = INVALID_MAZE_CHARACTER;
+            return false;
+        }
+
+        i++;
+    }
+
+    if (maze.nCols * maze.nLines != maze.fenceMap.size())
+    {
+        // Size in header does not match maze size
+        validInput = false;
+        errorMessage = INVALID_MAZE_SIZE;
+        return false;
+    }
+
+    file.close();
+    return true;
+}
+
+/**
+ * Receives input from the player and loads the respective maze.
  * 
  * @param gameState The game state
  * @param maze Where the maze is stored
@@ -338,80 +432,10 @@ bool mazeMenu(GameState &gameState, Maze &maze, bool &validInput, string &errorM
         return true;
     }
 
-    // Construct file name
-    string filename = "MAZE_"s + maze.mazeNumber + ".txt"s;
-
-    // Open file
-    ifstream infile;
-    infile.open(filename);
-    // File doesn't exist
-    if (!infile.is_open())
+    if (!loadMaze(maze, validInput, errorMessage))
     {
-        validInput = false;
-        errorMessage = MAZE_NOT_FOUND;
         return true;
     }
-
-    // Get number of rows and columns from top of file
-    char x;
-    infile >> maze.nLines >> x >> maze.nCols;
-
-    if (x != 'x' || infile.fail())
-    {
-        validInput = false;
-        errorMessage = INVALID_MAZE_HEADER_SIZE;
-        return true;
-    }
-
-    char c;
-    maze.player.alive = false;
-    size_t i = 0;
-    while (infile.get(c))
-    {
-        switch (c)
-        {
-        case '\n':
-            continue;
-        case 'R':
-            maze.robots.push_back(Entity(i % maze.nCols, i / maze.nCols));
-            maze.fenceMap.push_back(' ');
-            break;
-        case 'H':
-            if (maze.player.alive)
-            {
-                // Found two players
-                validInput = false;
-                errorMessage = MULTIPLE_PLAYERS;
-                return true;
-            }
-            maze.player = Entity(i % maze.nCols, i / maze.nCols);
-            maze.fenceMap.push_back(' ');
-            break;
-        case ' ':
-            maze.fenceMap.push_back(' ');
-            break;
-        case '*':
-            maze.fenceMap.push_back('*');
-            break;
-        default:
-            // Found an invalid character
-            validInput = false;
-            errorMessage = INVALID_MAZE_CHARACTER;
-            return true;
-        }
-
-        i++;
-    }
-
-    if (maze.nCols * maze.nLines != maze.fenceMap.size())
-    {
-        // Size in header does not match maze size
-        validInput = false;
-        errorMessage = INVALID_MAZE_SIZE;
-        return true;
-    }
-
-    infile.close();
 
     // Start the game
     gameState = GameState::inGame;
@@ -601,7 +625,7 @@ bool isGameOver(const Maze &maze)
 }
 
 /**
- * Updates the maze's visualMap with the robots and the player
+ * Updates the maze's visualMap with the robots and the player.
  * 
  * @param maze The maze
  */
@@ -618,7 +642,7 @@ void updateVisualMap(Maze &maze)
 }
 
 /**
- * Prints the maze's visualMap
+ * Prints the maze's visualMap.
  * 
  * @param maze The maze
  */
@@ -688,10 +712,7 @@ bool inGame(GameState &gameState, Maze &maze, bool &validInput, string &errorMes
  */
 void readLeaderboard(const string &mazeNumber, Leaderboard &leaderboard)
 {
-    string fileName = "MAZE_"s + mazeNumber + "_WINNERS.txt"s;
-
-    ifstream file;
-    file.open(fileName);
+    ifstream file("MAZE_"s + mazeNumber + "_WINNERS.txt"s);
 
     // File doesn't exist
     if (!file.is_open())
@@ -724,11 +745,24 @@ void readLeaderboard(const string &mazeNumber, Leaderboard &leaderboard)
     file.close();
 }
 
+/**
+ * Function used with std::sort to sort a leaderboard by points.
+ * 
+ * @param person1 The first person
+ * @param person2 The second person
+ * 
+ * @returns true if the second person's points are greater than the first's
+ */
 bool compareLeaderboardPoints(LeaderboardEntry person1, LeaderboardEntry person2)
 {
     return (person1.points < person2.points);
 }
 
+/**
+ * Sorts a leaderboard by points.
+ * 
+ * @param leaderboard The leaderboard
+ */
 void sortLeaderboard(Leaderboard &leaderboard)
 {
     sort(leaderboard.begin(), leaderboard.end(), compareLeaderboardPoints);
