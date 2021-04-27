@@ -321,6 +321,7 @@ bool mazeMenu(GameState &gameState, Maze &maze, bool &validInput, string &errorM
     // User wants to return to main menu
     if (maze.mazeNumber == "00")
     {
+        cout << "\n";
         gameState = GameState::mainMenu;
         return true;
     }
