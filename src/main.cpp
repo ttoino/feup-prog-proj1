@@ -253,20 +253,24 @@ bool mainMenu(GameState &gameState, bool &validInput, string &errorMessage)
     if (!getInput(input))
         return false; // EOF, exit game
 
-    // New line for spacing
-    cout << "\n";
-
     validInput = true;
 
     if (input == "1")
+    {
+        // New line for spacing
+        cout << "\n";
         return printRules(); // Show the rules
-
+    }
     else if (input == "2")
+    {
+        // New line for spacing
+        cout << "\n";
         gameState = GameState::mazeMenu; // Pick the maze
-
+    }
     else if (input == "0")
+    {
         return false; // Leave the game
-
+    }
     else
     {
         validInput = false;
