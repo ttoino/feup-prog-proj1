@@ -10,10 +10,17 @@
 using namespace std;
 
 const string GENERIC_ERROR = "Invalid input!"s;
+
 const string CELL_OCCUPIED = "That cell is occupied!"s;
 const string OUT_OF_BOUNDS = "Cannot move out of bounds!"s;
+
 const string INVALID_MAZE_NUMBER = "Must be a number from 1 to 99!"s;
 const string MAZE_NOT_FOUND = "That maze could not be found!"s;
+const string INVALID_MAZE_HEADER_SIZE = "Invalid maze size in header!"s;
+const string INVALID_MAZE_SIZE = "Maze does not match size in header!"s;
+const string MULTIPLE_PLAYERS = "Maze has multiple players!"s;
+const string INVALID_MAZE_CHARACTER = "Invalid character found in maze!"s;
+
 const string INVALID_NAME = "Must have 15 characters or fewer!"s;
 const string ANOTHER_NAME = "";
 
@@ -344,31 +351,59 @@ bool mazeMenu(GameState &gameState, Maze &maze, bool &validInput, string &errorM
     char x;
     infile >> maze.nLines >> x >> maze.nCols;
 
-    // Load maze
-    for (size_t i = 0; i < maze.nLines; i++)
+    if (x != 'x' || infile.fail())
     {
-        // Ignore \n
-        infile.ignore();
+        validInput = false;
+        errorMessage = INVALID_MAZE_HEADER_SIZE;
+        return true;
+    }
 
-        for (size_t j = 0; j < maze.nCols; j++)
+    char c;
+    maze.player.alive = false;
+    size_t i = 0;
+    while (infile.get(c))
+    {
+        switch (c)
         {
-            char c;
-            infile.get(c);
-
-            if (c == '*')
-                // Tile is a post/fence
-                maze.fenceMap.push_back('*');
-            else
-                // Tile is not a post/fence
-                maze.fenceMap.push_back(' ');
-
-            if (c == 'R')
-                // Tile is a robot
-                maze.robots.push_back(Entity(j, i));
-            else if (c == 'H')
-                // Tile is the player
-                maze.player = Entity(j, i);
+        case '\n':
+            continue;
+        case 'R':
+            maze.robots.push_back(Entity(i % maze.nCols, i / maze.nCols));
+            maze.fenceMap.push_back(' ');
+            break;
+        case 'H':
+            if (maze.player.alive)
+            {
+                // Found two players
+                validInput = false;
+                errorMessage = MULTIPLE_PLAYERS;
+                return true;
+            }
+            maze.player = Entity(i % maze.nCols, i / maze.nCols);
+            maze.fenceMap.push_back(' ');
+            break;
+        case ' ':
+            maze.fenceMap.push_back(' ');
+            break;
+        case '*':
+            maze.fenceMap.push_back('*');
+            break;
+        default:
+            // Found an invalid character
+            validInput = false;
+            errorMessage = INVALID_MAZE_CHARACTER;
+            return true;
         }
+
+        i++;
+    }
+
+    if (maze.nCols * maze.nLines != maze.fenceMap.size())
+    {
+        // Size in header does not match maze size
+        validInput = false;
+        errorMessage = INVALID_MAZE_SIZE;
+        return true;
     }
 
     infile.close();
