@@ -720,7 +720,18 @@ void saveLeaderboard(const string &mazeNumber, Leaderboard &leaderboard)
     printLeaderboard(file, leaderboard);
 }
 
-bool searchName(Leaderboard &leaderboard, LeaderboardEntry &person)
+/**
+ * Searches the leaderboard for an entry with the same name. 
+ * If it's found, asks the user if they want to use it or change it.
+ * 
+ * @param leaderboard The leaderboard
+ * @param person The person with the name to search for
+ * @param validInput Whether the last input was valid. Is set to false if an entry with the name is found
+ * @param errorMessage The error message returned if the input was invalid
+ * 
+ * @returns false if the user wants to exit the game
+ */
+bool searchName(Leaderboard &leaderboard, LeaderboardEntry &person, bool &validInput, string &errorMessage)
 {
     for (auto &other : leaderboard)
     {
@@ -730,24 +741,26 @@ bool searchName(Leaderboard &leaderboard, LeaderboardEntry &person)
 
             string decision;
 
-            getInput(decision);
+            if (!getInput(decision))
+                return false;
 
             if (decision == "y" || decision == "Y")
             {
                 // Only save new score if it's better than the current one
                 if (person.points < other.points)
                     other.points = person.points;
-                return false;
             }
             else
             {
-                return true;
+                validInput = false;
+                errorMessage = ANOTHER_NAME;
             }
+            return true;
         }
     }
 
     leaderboard.push_back(person);
-    return false;
+    return true;
 }
 
 /**
@@ -799,12 +812,11 @@ bool finished(GameState &gameState, const Maze &maze, bool &validInput, string &
 
         readLeaderboard(maze.mazeNumber, leaderboard);
 
-        if (searchName(leaderboard, person))
-        {
-            validInput = false;
-            errorMessage = ANOTHER_NAME;
+        if (!searchName(leaderboard, person, validInput, errorMessage))
+            return false;
+
+        if (!validInput)
             return true;
-        }
 
         sortLeaderboard(leaderboard);
 
