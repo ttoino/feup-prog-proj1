@@ -107,6 +107,12 @@ enum class GameState
     finished
 };
 
+/**
+ * Normalizes input. 
+ * Replaces all tabs with spaces, removes duplicate spaces and trims spaces from the start and the end.
+ * 
+ * @param input The input to normalize
+ */
 void normalizeInput(string &input)
 {
     char last = 0;
@@ -731,7 +737,7 @@ void saveLeaderboard(const string &mazeNumber, Leaderboard &leaderboard)
  * 
  * @returns false if the user wants to exit the game
  */
-bool searchName(Leaderboard &leaderboard, LeaderboardEntry &person, bool &validInput, string &errorMessage)
+bool searchSameName(Leaderboard &leaderboard, const LeaderboardEntry &person, bool &validInput, string &errorMessage)
 {
     for (auto &other : leaderboard)
     {
@@ -812,7 +818,7 @@ bool finished(GameState &gameState, const Maze &maze, bool &validInput, string &
 
         readLeaderboard(maze.mazeNumber, leaderboard);
 
-        if (!searchName(leaderboard, person, validInput, errorMessage))
+        if (!searchSameName(leaderboard, person, validInput, errorMessage))
             return false;
 
         if (!validInput)
