@@ -20,6 +20,7 @@ const string INVALID_MAZE_NUMBER = "Must be a number from 1 to 99!"s;
 const string MAZE_NOT_FOUND = "That maze could not be found!"s;
 const string INVALID_MAZE_HEADER_SIZE = "Invalid maze size in header!"s;
 const string INVALID_MAZE_SIZE = "Maze does not match size in header!"s;
+const string NO_PLAYER = "Maze has no players!"s;
 const string MULTIPLE_PLAYERS = "Maze has multiple players!"s;
 const string INVALID_MAZE_CHARACTER = "Invalid character found in maze!"s;
 
@@ -372,6 +373,14 @@ bool loadMaze(Maze &maze, bool &validInput, string &errorMessage)
         }
 
         i++;
+    }
+
+    if (!maze.player.alive)
+    {
+        // No player was found
+        validInput = false;
+        errorMessage = NO_PLAYER;
+        return false;
     }
 
     if (maze.nCols * maze.nLines != maze.fenceMap.size())
